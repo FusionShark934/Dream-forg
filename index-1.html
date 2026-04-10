@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#080810"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="DreamForge"/>
+  <link rel="manifest" href="manifest.json"/>
+  <title>DreamForge — AI Image Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080810; --card: #0f0f1c; --card2: #161626;
+      --border: rgba(255,255,255,0.06);
+      --gold: #f0c060; --gold2: #e8a030; --teal: #40d0c0;
+      --text: #eeeef5; --muted: #68687a; --danger: #ff6060; --success: #50d090;
+    }
+    html, body { height: 100%; overflow-x: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 55% 35% at 15% 20%, rgba(240,192,96,0.08) 0%, transparent 65%),
+        radial-gradient(ellipse 45% 55% at 85% 75%, rgba(64,208,192,0.07) 0%, transparent 65%);
+    }
+    #app { position: relative; z-index: 1; min-height: 100vh; max-width: 480px; margin: 0 auto; padding-bottom: 40px; display: flex; flex-direction: column; }
+
+    header { padding: 56px 22px 20px; display: flex; align-items: flex-start; justify-content: space-between; }
+    .brand { display: flex; flex-direction: column; gap: 3px; }
+    .brand-name {
+      font-family: 'Playfair Display', serif; font-weight: 900; font-size: 26px;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--teal) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .brand-tag { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+
+    .hdr-right { display: flex; gap: 8px; align-items: center; }
+    .status-pill { display: flex; align-items: center; gap: 7px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 7px 13px; font-size: 12px; color: var(--muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .btn-key { background: var(--card); border: 1px solid var(--border); border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; transition: border-color 0.2s; }
+    .btn-key:hover { border-color: rgba(240,192,96,0.4); }
+
+    /* TOKEN BANNER */
+    #tokenBanner { margin: 0 22px 18px; background: linear-gradient(135deg, rgba(240,192,96,0.1), rgba(64,208,192,0.08)); border: 1px solid rgba(240,192,96,0.3); border-radius: 14px; padding: 14px 16px; }
+    #tokenBanner.hidden { display: none; }
+    .token-title { font-size: 13px; font-weight: 600; color: var(--gold); margin-bottom: 3px; }
+    .token-sub { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+    .token-row { display: flex; gap: 8px; }
+    #tokenInput { flex: 1; background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-size: 13px; font-family: 'Outfit', sans-serif; outline: none; }
+    #tokenInput:focus { border-color: rgba(240,192,96,0.4); }
+    .btn-save-token { background: var(--gold); border: none; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #1a0e00; cursor: pointer; white-space: nowrap; font-family: 'Outfit', sans-serif; }
+
+    /* INSTALL */
+    #installBanner { margin: 0 22px 18px; display: none; align-items: center; gap: 11px; background: rgba(64,208,192,0.06); border: 1px solid rgba(64,208,192,0.25); border-radius: 14px; padding: 13px 15px; }
+    #installBanner.show { display: flex; }
+    .install-icon { font-size: 20px; flex-shrink: 0; }
+    .install-info { flex: 1; }
+    .install-title { font-size: 13px; font-weight: 600; color: var(--teal); }
+    .install-sub { font-size: 11px; color: var(--muted); }
+    #installBtn { background: var(--teal); border: none; border-radius: 10px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #001a18; cursor: pointer; flex-shrink: 0; font-family: 'Outfit', sans-serif; }
+
+    .section { padding: 0 22px; margin-bottom: 18px; }
+    .section-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 9px; display: block; }
+
+    .prompt-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 15px; transition: border-color 0.25s; }
+    .prompt-wrap:focus-within { border-color: rgba(240,192,96,0.3); }
+    #promptInput { width: 100%; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; line-height: 1.65; resize: none; min-height: 95px; caret-color: var(--gold); }
+    #promptInput::placeholder { color: var(--muted); }
+    .prompt-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .char-ct { font-size: 11px; color: var(--muted); }
+    .btn-suggest { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+    .btn-suggest:hover { color: var(--gold); border-color: rgba(240,192,96,0.3); }
+
+    .chips { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex-shrink: 0; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 7px 13px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.18s; white-space: nowrap; font-family: 'Outfit', sans-serif; }
+    .chip:hover { color: var(--text); border-color: rgba(255,255,255,0.14); }
+    .chip.on { background: rgba(240,192,96,0.12); border-color: rgba(240,192,96,0.5); color: var(--gold); font-weight: 500; }
+
+    .two-col { display: flex; gap: 10px; }
+    .select-wrap { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 11px 14px; display: flex; flex-direction: column; gap: 3px; }
+    .select-wrap:focus-within { border-color: rgba(64,208,192,0.3); }
+    .select-lbl { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .select-wrap select { background: transparent; border: none; outline: none; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; width: 100%; }
+    .select-wrap select option { background: #1a1a2e; }
+
+    .steps-row { display: flex; gap: 6px; padding: 0 22px; margin-bottom: 18px; }
+    .step-pill { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px; text-align: center; cursor: pointer; transition: all 0.18s; }
+    .step-pill.on { border-color: rgba(64,208,192,0.4); background: rgba(64,208,192,0.07); }
+    .step-num { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .step-lbl { font-size: 9px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+    .step-pill.on .step-num, .step-pill.on .step-lbl { color: var(--teal); }
+
+    .gen-wrap { padding: 0 22px; margin-bottom: 22px; }
+    #genBtn { width: 100%; background: linear-gradient(135deg, var(--gold2) 0%, var(--gold) 100%); border: none; border-radius: 16px; padding: 18px; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 17px; color: #1a0e00; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.22s; box-shadow: 0 4px 24px rgba(240,192,96,0.2); }
+    #genBtn:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,192,96,0.3); }
+    #genBtn:active { transform: translateY(0); }
+    #genBtn:disabled { background: var(--card2); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+
+    #loadingSection { display: none; padding: 0 22px 22px; }
+    #loadingSection.show { display: block; }
+    .load-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px; text-align: center; }
+    .load-rings { width: 52px; height: 52px; margin: 0 auto 18px; position: relative; }
+    .load-rings::before, .load-rings::after { content: ''; position: absolute; border-radius: 50%; border: 2px solid transparent; }
+    .load-rings::before { inset: 0; border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
+    .load-rings::after { inset: 8px; border-top-color: var(--teal); animation: spin 0.6s linear infinite reverse; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+    .load-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+    .progress-track { height: 3px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+    .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--teal)); border-radius: 3px; transition: width 1s ease; }
+
+    #resultSection { display: none; padding: 0 22px 22px; }
+    #resultSection.show { display: block; }
+    .result-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .result-title { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, var(--gold), var(--teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .result-actions { display: flex; gap: 8px; }
+    .btn-action { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 7px 13px; font-size: 12px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+    .btn-action:hover { border-color: rgba(240,192,96,0.4); color: var(--gold); }
+    .result-frame { border-radius: 20px; overflow: hidden; border: 1px solid var(--border); background: var(--card); }
+    #resultImg { width: 100%; display: block; animation: revealImg 0.6s cubic-bezier(0.22,1,0.36,1); }
+    @keyframes revealImg { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
+    .result-caption { margin-top: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; font-size: 12px; color: var(--muted); font-style: italic; line-height: 1.5; }
+
+    .gallery-section { padding: 0 22px; }
+    .gallery-hdr { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 13px; display: flex; align-items: center; justify-content: space-between; }
+    .gallery-count { background: var(--card2); border-radius: 10px; padding: 3px 9px; font-size: 11px; color: var(--muted); }
+    .gallery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .g-item { border-radius: 14px; overflow: hidden; background: var(--card); border: 1px solid var(--border); aspect-ratio: 1; cursor: pointer; transition: all 0.22s; position: relative; }
+    .g-item:hover { transform: scale(1.03); border-color: rgba(240,192,96,0.3); }
+    .g-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .g-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,16,0.75) 0%, transparent 55%); opacity: 0; transition: opacity 0.2s; display: flex; align-items: flex-end; padding: 9px; }
+    .g-item:hover .g-overlay { opacity: 1; }
+    .g-caption { font-size: 10px; color: rgba(255,255,255,0.8); line-height: 1.3; font-style: italic; }
+    .gallery-empty { grid-column: 1/-1; text-align: center; padding: 36px; color: var(--muted); font-size: 13px; }
+    .gallery-empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
+
+    #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); border-radius: 12px; padding: 12px 20px; font-size: 13px; font-weight: 500; z-index: 999; transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); white-space: nowrap; max-width: 90vw; background: var(--card2); border: 1px solid var(--border); color: var(--text); }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.err { background: rgba(255,96,96,0.15); border-color: rgba(255,96,96,0.4); color: var(--danger); }
+    #toast.ok { background: rgba(80,208,144,0.15); border-color: rgba(80,208,144,0.4); color: var(--success); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-name">DreamForge</div>
+      <div class="brand-tag">AI Image Studio</div>
+    </div>
+    <div class="hdr-right">
+      <div class="status-pill"><div class="status-dot"></div><span id="statusText">Ready</span></div>
+      <button class="btn-key" onclick="showTokenBanner()" title="Change API token">🔑</button>
+    </div>
+  </header>
+
+  <!-- Token Banner -->
+  <div id="tokenBanner">
+    <div class="token-title">🔑 Enter your Hugging Face Token</div>
+    <div class="token-sub">Get a free token at huggingface.co/settings/tokens — stays on your device only</div>
+    <div class="token-row">
+      <input id="tokenInput" type="password" placeholder="hf_xxxxxxxxxxxxxxxx"/>
+      <button class="btn-save-token" onclick="saveToken()">Save</button>
+    </div>
+  </div>
+
+  <!-- Install Banner -->
+  <div id="installBanner">
+    <div class="install-icon">📲</div>
+    <div class="install-info">
+      <div class="install-title">Install as App</div>
+      <div class="install-sub">Add to home screen</div>
+    </div>
+    <button id="installBtn">Install</button>
+  </div>
+
+  <!-- Prompt -->
+  <div class="section">
+    <span class="section-label">Describe your image</span>
+    <div class="prompt-wrap">
+      <textarea id="promptInput" placeholder="A lone samurai on a misty mountain at dawn, cherry blossoms falling, cinematic lighting..." maxlength="500"></textarea>
+      <div class="prompt-footer">
+        <span class="char-ct" id="charCt">0 / 500</span>
+        <button class="btn-suggest" onclick="randomPrompt()">🎲 Surprise me</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Style -->
+  <div class="section">
+    <span class="section-label">Style</span>
+    <div class="chips" id="styleChips"></div>
+  </div>
+
+  <!-- Model + Size -->
+  <div class="section">
+    <div class="two-col">
+      <div class="select-wrap">
+        <span class="select-lbl">Model</span>
+        <select id="modelSelect">
+          <option value="stabilityai/stable-diffusion-2-1">SD 2.1 (Best)</option>
+          <option value="runwayml/stable-diffusion-v1-5">SD 1.5 (Fast)</option>
+          <option value="stabilityai/stable-diffusion-xl-base-1.0">SDXL (HD)</option>
+        </select>
+      </div>
+      <div class="select-wrap">
+        <span class="select-lbl">Size</span>
+        <select id="sizeSelect">
+          <option value="512x512">512 × 512</option>
+          <option value="512x768">512 × 768 Portrait</option>
+          <option value="768x512">768 × 512 Wide</option>
+          <option value="768x768">768 × 768 Large</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="section"><span class="section-label">Quality Steps</span></div>
+  <div class="steps-row" id="stepsRow"></div>
+
+  <!-- Generate -->
+  <div class="gen-wrap">
+    <button id="genBtn" onclick="generate()">✦ Forge Image</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingSection">
+    <div class="load-card">
+      <div class="load-rings"></div>
+      <div class="load-title">Forging your vision...</div>
+      <div class="load-sub" id="loadSub">Sending to Hugging Face</div>
+      <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="resultSection">
+    <div class="result-hdr">
+      <div class="result-title">✦ Your Creation</div>
+      <div class="result-actions">
+        <button class="btn-action" onclick="downloadImg()">⬇ Save</button>
+        <button class="btn-action" onclick="shareImg()">↗ Share</button>
+      </div>
+    </div>
+    <div class="result-frame"><img id="resultImg" src="" alt="Generated image"/></div>
+    <div class="result-caption" id="resultCaption"></div>
+  </div>
+
+  <!-- Gallery -->
+  <div class="gallery-section">
+    <div class="gallery-hdr">
+      <span>Recent Creations</span>
+      <span class="gallery-count" id="galleryCount">0</span>
+    </div>
+    <div class="gallery-grid" id="galleryGrid">
+      <div class="gallery-empty"><div class="gallery-empty-icon">🎨</div>Your generated images appear here</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const HF_API = 'https://api-inference.huggingface.co/models/';
+const TOKEN_KEY = 'df_hf_token';
+
+const STYLES = [
+  { label: '🌟 None', sfx: '' },
+  { label: '📸 Photorealistic', sfx: ', photorealistic, ultra detailed, 8k, DSLR photo' },
+  { label: '🖼 Oil Painting', sfx: ', oil painting, classical masterpiece, rich textures' },
+  { label: '🌸 Anime', sfx: ', anime illustration, vibrant, Studio Ghibli, detailed' },
+  { label: '🔮 Fantasy', sfx: ', epic fantasy art, magical atmosphere, dramatic lighting' },
+  { label: '🌆 Cyberpunk', sfx: ', cyberpunk, neon lights, rain, futuristic, blade runner' },
+  { label: '🎭 Watercolor', sfx: ', watercolor painting, soft colors, artistic, flowing' },
+  { label: '🤖 3D Render', sfx: ', 3D render, octane, volumetric lighting, hyperrealistic' },
+];
+
+const STEPS_OPTS = [
+  { label: 'Fast', val: 20, sub: '~15s' },
+  { label: 'Balanced', val: 30, sub: '~25s' },
+  { label: 'Quality', val: 40, sub: '~35s' },
+  { label: 'Ultra', val: 50, sub: '~50s' },
+];
+
+const PROMPTS = [
+  'A majestic white wolf on a snowy peak, aurora borealis above, epic fantasy art',
+  'Underwater city with bioluminescent buildings, colorful fish, ethereal light rays, 8k',
+  'Ancient dragon guarding treasure in a crystal cave, cinematic lighting, detailed scales',
+  'Cozy Japanese tea house in autumn forest, falling maple leaves, misty morning, watercolor',
+  'Futuristic Tokyo street at night, neon signs, rain puddles reflecting lights, cyberpunk',
+  'A wizard tower on a floating island above clouds, magical energy, fantasy art',
+  'Portrait of a warrior goddess with golden armor, sun behind her, photorealistic, 4k',
+  'Surreal dreamscape with melting clocks over an infinite ocean at sunset, surrealist art',
+];
+
+let selStyle = 0, selSteps = 1, currentBlob = null, deferredPrompt = null;
+let progTimer = null;
+
+function init() {
+  renderStyleChips(); renderSteps(); renderGallery();
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    document.getElementById('tokenBanner').classList.add('hidden');
+    document.getElementById('statusText').textContent = 'Ready';
+  }
+  document.getElementById('promptInput').addEventListener('input', function() {
+    document.getElementById('charCt').textContent = this.value.length + ' / 500';
+  });
+}
+
+function showTokenBanner() {
+  const banner = document.getElementById('tokenBanner');
+  banner.classList.toggle('hidden');
+}
+
+function saveToken() {
+  const val = document.getElementById('tokenInput').value.trim();
+  if (!val.startsWith('hf_')) { toast('Token must start with hf_', 'err'); return; }
+  localStorage.setItem(TOKEN_KEY, val);
+  document.getElementById('tokenInput').value = '';
+  document.getElementById('tokenBanner').classList.add('hidden');
+  toast('✅ Token saved! Ready to generate.', 'ok');
+}
+
+function renderStyleChips() {
+  document.getElementById('styleChips').innerHTML = STYLES.map((s, i) =>
+    `<button class="chip ${i===selStyle?'on':''}" onclick="pickStyle(${i})">${s.label}</button>`
+  ).join('');
+}
+function pickStyle(i) { selStyle = i; renderStyleChips(); }
+
+function renderSteps() {
+  document.getElementById('stepsRow').innerHTML = STEPS_OPTS.map((s, i) => `
+    <div class="step-pill ${i===selSteps?'on':''}" onclick="pickSteps(${i})">
+      <div class="step-num">${s.label}</div>
+      <div class="step-lbl">${s.sub}</div>
+    </div>`).join('');
+}
+function pickSteps(i) { selSteps = i; renderSteps(); }
+
+function randomPrompt() {
+  const p = PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
+  document.getElementById('promptInput').value = p;
+  document.getElementById('charCt').textContent = p.length + ' / 500';
+}
+
+async function generate() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) { showTokenBanner(); toast('Please enter your HF token first 🔑', 'err'); return; }
+
+  const rawPrompt = document.getElementById('promptInput').value.trim();
+  if (!rawPrompt) { toast('Please enter a prompt ✍️'); return; }
+
+  const fullPrompt = rawPrompt + STYLES[selStyle].sfx;
+  const sizeVal = document.getElementById('sizeSelect').value;
+  const [w, h] = sizeVal.split('x').map(Number);
+  const steps = STEPS_OPTS[selSteps].val;
+  const model = document.getElementById('modelSelect').value;
+
+  setLoading(true);
+  animateProgress();
+
+  const subs = ['Sending to Hugging Face...', 'Model warming up...', 'Generating pixels...', 'Applying style...', 'Almost done...'];
+  let si = 0;
+  const subTimer = setInterval(() => {
+    si = Math.min(si + 1, subs.length - 1);
+    document.getElementById('loadSub').textContent = subs[si];
+  }, 4000);
+
+  try {
+    const res = await fetch(`${HF_API}${model}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inputs: fullPrompt,
+        parameters: { width: w, height: h, num_inference_steps: steps, guidance_scale: 7.5 }
+      })
+    });
+
+    clearInterval(subTimer);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error('Invalid token. Please update your HF token.');
+      if (res.status === 503) throw new Error('Model loading — wait 20s and try again.');
+      throw new Error(err.error || 'Generation failed. Try again.');
+    }
+
+    const blob = await res.blob();
+    currentBlob = blob;
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('resultImg').src = url;
+    document.getElementById('resultCaption').textContent = `"${rawPrompt}"`;
+    setLoading(false);
+    document.getElementById('resultSection').classList.add('show');
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveToGallery(blob, rawPrompt);
+    toast('✨ Image created!', 'ok');
+
+  } catch (e) {
+    clearInterval(subTimer);
+    setLoading(false);
+    toast('⚠ ' + (e.message || 'Something went wrong'), 'err');
+  }
+}
+
+function animateProgress() {
+  let p = 0;
+  clearInterval(progTimer);
+  document.getElementById('progressBar').style.width = '0%';
+  progTimer = setInterval(() => {
+    p = p < 85 ? p + (Math.random() * 4) : p + 0.2;
+    p = Math.min(p, 92);
+    document.getElementById('progressBar').style.width = p + '%';
+  }, 800);
+}
+
+function saveToGallery(blob, prompt) {
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    let gallery = JSON.parse(localStorage.getItem('df_gallery') || '[]');
+    gallery.unshift({ src: reader.result, prompt, ts: Date.now() });
+    gallery = gallery.slice(0, 18);
+    localStorage.setItem('df_gallery', JSON.stringify(gallery));
+    renderGallery();
+  };
+  reader.readAsDataURL(blob);
+}
+
+function renderGallery() {
+  const gallery = JSON.parse(localStorage.getItem('df_gallery') || '[]');
+  document.getElementById('galleryCount').textContent = gallery.length;
+  const grid = document.getElementById('galleryGrid');
+  if (!gallery.length) {
+    grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎨</div>Your generated images appear here</div>';
+    return;
+  }
+  grid.innerHTML = gallery.map((item, i) => `
+    <div class="g-item" onclick="viewItem(${i})">
+      <img src="${item.src}" alt="" loading="lazy"/>
+      <div class="g-overlay"><div class="g-caption">${item.prompt.substring(0,55)}${item.prompt.length>55?'…':''}</div></div>
+    </div>`).join('');
+}
+
+function viewItem(i) {
+  const gallery = JSON.parse(localStorage.getItem('df_gallery') || '[]');
+  const item = gallery[i]; if (!item) return;
+  document.getElementById('resultImg').src = item.src;
+  document.getElementById('resultCaption').textContent = `"${item.prompt}"`;
+  document.getElementById('resultSection').classList.add('show');
+  currentBlob = null;
+  document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function downloadImg() {
+  const img = document.getElementById('resultImg');
+  if (!img.src || img.src === window.location.href) return;
+  const a = document.createElement('a');
+  a.href = img.src; a.download = 'dreamforge-' + Date.now() + '.png'; a.click();
+  toast('💾 Saved!', 'ok');
+}
+
+async function shareImg() {
+  if (navigator.share && currentBlob) {
+    try {
+      const file = new File([currentBlob], 'dreamforge.png', { type: 'image/png' });
+      await navigator.share({ title: 'DreamForge AI Art', files: [file] });
+    } catch(e) { downloadImg(); }
+  } else { downloadImg(); }
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = on;
+  btn.innerHTML = on ? '⏳ Forging...' : '✦ Forge Image';
+  document.getElementById('loadingSection').classList.toggle('show', on);
+  if (!on) { clearInterval(progTimer); document.getElementById('progressBar').style.width = '0%'; }
+}
+
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') document.getElementById('installBanner').classList.remove('show');
+  deferredPrompt = null;
+});
+
+init();
+</script>
+</body>
+</html>
